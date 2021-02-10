@@ -260,104 +260,81 @@ class SudokuBoardSmart(SudokuBoard):
 
         return implied_fill_list
 
-    # black magic
+    # find the other 2 indices in a given block
+    # ex. 1 -> 2, 3
+    #     5 -> 4, 6
     def adj_channels(self, x):
         return (((x) % 3) + 3 * ((x - 1) // 3) + 1, ((x + 1) % 3) + 3 * ((x - 1) // 3) + 1)
-
-    # def adj_cells_in_block(self, i_in, j_in):
-    #     # move into standard block 0 indexed
-    #     i = (i_in - 1) % 3
-    #     j = (j_in - 1) % 3
-    #     out_diffs = []
-    #     if i > 0: out_diffs.append((-1, 0))
-    #     if i < 2: out_diffs.append((1, 0))
-    #     if j > 0: out_diffs.append((0, -1))
-    #     if j < 2: out_diffs.append((0, 1))
-    #     return out_diffs
 
     def find_number_scan_fills(self, verbose=False):
         state = self.contents
         num_scan_fills_list = []
 
-        # block loop
+        # loop over every block
         for blk_x in range(1, 4):
             for blk_y in range(1, 4):
-                in_blk_cells = self.get_cells_for_block(blk_x, blk_y)
-                unfilled_in_blk_cells = [(j, k)
-                                         for j, k in in_blk_cells
-                                         if (j, k) not in state.keys()]
+                # get cell index tuples in block
+                # in_blk_cells = self.get_cells_for_block(blk_x, blk_y)
+                in_blk_cells = [(i, j)
+                                for i in range(1, 10)
+                                for j in range(1, 10)
+                                if (blk_x, blk_y) == self.get_block_number(i, j)]
+                # get unfilledi cell index tuples in block
+                unfilled_in_blk_cells = [(i, j)
+                                         for i, j in in_blk_cells
+                                         if (i, j) not in state.keys()]
+                # get current filled numbers in block
                 blk_nums = self.get_numbers_for_block(blk_x, blk_y)
-                diff = list(set(range(1, 10)) - set(blk_nums))
+                # get missing numbers (not filled) in block
+                unfilled_nums = list(set(range(1, 10)) - set(blk_nums))
+                # check for invalid
+                if len(unfilled_in_blk_cells) == 1:
+                    i, j = unfilled_in_blk_cells[0]
+                    k = unfilled_nums[0]
+                    if k in self.get_numbers_for_row(i) or k in self.get_numbers_for_col(j):
+                        self.has_conflict = True
+                        return []
+                # loop over each unfilled index in block
                 for (i, j) in unfilled_in_blk_cells:
-                    for k in diff:
-                        # check 4 channels
+                    # loop over numbers not in block
+                    for k in unfilled_nums:
+                        # check 4 "blocking channels"
                         ia1, ia2 = self.adj_channels(i)
                         ja1, ja2 = self.adj_channels(j)
 
-                        death = []
-                        # paint beams
+                        # mark block cells invalid if collisions.
+                        invalid_pos = []
                         if k in self.get_numbers_for_row(ia1):
-                            death += [(p, q) for p, q in in_blk_cells if p == ia1]
+                            invalid_pos += [(p, q) for p, q in in_blk_cells if p == ia1]
                         if k in self.get_numbers_for_row(ia2):
-                            death += [(p, q) for p, q in in_blk_cells if p == ia2]
+                            invalid_pos += [(p, q) for p, q in in_blk_cells if p == ia2]
                         if k in self.get_numbers_for_col(ja1):
-                            death += [(p, q) for p, q in in_blk_cells if q == ja1]
+                            invalid_pos += [(p, q) for p, q in in_blk_cells if q == ja1]
                         if k in self.get_numbers_for_col(ja2):
-                            death += [(p, q) for p, q in in_blk_cells if q == ja2]
-                        death += [(p, q) for p, q in in_blk_cells if (p, q) in state.keys()]
+                            invalid_pos += [(p, q) for p, q in in_blk_cells if q == ja2]
 
-                        # ich1 = k in self.get_numbers_for_row(ia1)
-                        # ich2 = k in self.get_numbers_for_row(ia2)
-                        # jch1 = k in self.get_numbers_for_col(ja1)
-                        # jch2 = k in self.get_numbers_for_col(ja2)
-                        # ifil1 = (ia1, j) in state.keys()
-                        # ifil2 = (ia2, j) in state.keys()
-                        # jfil1 = (i, ja1) in state.keys()
-                        # jfil2 = (i, ja2) in state.keys()
-                        # if (ich1 or jfil1) and (ich2 or jfil2) and (jch1 or ifil1) and (jch2 or ifil2):
-                        # TODO add check remain invalid optimization
-                        if len(set(death)) == 8:
-                        # if ich1 and ich2 and jch1 and jch2:
-                            # print('up {}, right {}, down {}, left{}, pos {}'.format((ia1, j), (i, ja1), (ia2, j), (i, ja2), (i,j)))
+                        # mark filled cells in block invalid
+                        invalid_pos += [(p, q) for p, q in in_blk_cells if (p, q) in state.keys()]
+
+                        # check 8 unique cells marked invalid
+                        if len(set(invalid_pos)) == 8:
+                            # check for row and column collisions at remaining index
                             row_collide = k in self.get_numbers_for_row(i)
                             col_collide = k in self.get_numbers_for_col(j)
                             if not (row_collide or col_collide):
-                                # self.pretty_print()
-                                # print(self.is_valid())
+                                # note: no block collisions is implied
                                 num_scan_fills_list.append((i, j, k))
-
         return num_scan_fills_list
 
-#                     row_nums = self.get_numbers_for_row(i)
-#                     col_nums = self.get_numbers_for_col(j)
-#                     diff = list(set(range(1, 10)) -
-#                                 set(blk_nums + row_nums + col_nums))
-
-#                     if len(diff) == 0:
-#                         self.has_conflict = True
-#                         return []
-
-#                     if len(diff) == 1:
-#                         k = diff[0]
-#                         implied_fill_list.append((i, j, k))
-
-    # Function: do_all_implied_fills
-    # repeatedly find implied fills and perform them.
-    # keep finding new implied fills until no more are left.
+    # Function: do_all_smart_fills
+    # repeatedly find smart fills and perform them.
+    # keep finding new smart fills until no more are left.
     # DO NOT MODIFY
     def do_all_smart_fills(self, verbose=False):
-        # done = False
-        # state = self.contents
-        # while (not done and not self.has_conflict):
-        #     lst = self.find_implied_fills(verbose)
-        #     if len(lst) == 0:
-        #         done = True
-        #     else:
-        #         for (i, j, k) in lst:
-        #             state[(i, j)] = k
-        # return
         state = self.contents
+        # track how many times either fill has failed sequentially
         quit = 0
+        # next fill to use in the loop
         mode = 0
         while (quit < 2 and not self.has_conflict):
             if mode == 0:
@@ -366,12 +343,15 @@ class SudokuBoardSmart(SudokuBoard):
                 lst = self.find_number_scan_fills(verbose)
 
             if len(lst) == 0:
+                # iterate quit when no results found
                 quit += 1
-                # quit = 2
             else:
+                # reset quit when successful fill
                 quit = 0
+                # take action -> change state
                 for i, j, k in lst:
                     state[(i, j)] = k
+            # toggle mode between 0 and 1
             mode = (mode + 1) % 2
 
     def is_valid(self, verbose=False):
