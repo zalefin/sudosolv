@@ -1,13 +1,13 @@
 ## Code copied from AIMA python repository to define a Problem class.
-# DO NOT MODIFY, but please read through the specification of each method 
+# DO NOT MODIFY, but please read through the specification of each method
 # in the class.
 
-# Note that the problem class is a parent class specifying 
+# Note that the problem class is a parent class specifying
 #  a problem data strucure. In the next cell you will be provided
 #  a class that inherits from the `Problem` class that you will need
 #  to implement.
 
-# Read this code carefully since it describes the functions you will need to 
+# Read this code carefully since it describes the functions you will need to
 # implement in the subsequent cells.
 
 class Problem:

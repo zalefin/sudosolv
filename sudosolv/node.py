@@ -7,7 +7,7 @@ class Node:
         self.path_cost = path_cost
         if parent:
             self.depth = parent.depth + 1
-        else: 
+        else:
             self.depth = 0
 
     def __repr__(self):
